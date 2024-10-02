@@ -46,10 +46,12 @@
         </tbody>
     </table>
 
-    <script>
-        const version = "1.2"; // Ako promijenim "name" dodat 0.1
 
-        // Initial product names and thresholds (lengths will be preserved)
+    <script>
+        const version = "1.2"; // promijenit broj ako dodam ili promijrnim mrezu
+        let historyStack = []; 
+    
+        
         const updatedProductsInfo = [
         { name: "50/30/325", length:20, threshold: 10 }, 
         { name: "63/40/250 kal", length: 15, threshold: 10 }, 
@@ -66,60 +68,53 @@
         { name: "63/40/250", length: 30, threshold: 10 }, 
         { name: "55/25/325 kal", length: 30, threshold: 10 },
         { name: "140/65/120", length: 30, threshold: 5 }, 
-        { name: "140/65/120", length: 30, threshold: 5 } 
         ];
-
-        // Function to get the product list from localStorage or use defaults
+    
         function getProducts() {
             const storedVersion = localStorage.getItem('version');
             const storedProducts = localStorage.getItem('products');
-
+    
             if (!storedProducts || storedVersion !== version) {
                 let newProducts = [];
-                
                 if (storedProducts) {
-                    // If products exist in localStorage, preserve the lengths but update names and thresholds
                     const existingProducts = JSON.parse(storedProducts);
                     updatedProductsInfo.forEach((updatedProduct, index) => {
                         let existingProduct = existingProducts[index] || {};
                         newProducts.push({
                             name: updatedProduct.name,
-                            length: existingProduct.length || updatedProduct.length || 20, // Preserve existing length or set default
+                            length: existingProduct.length || updatedProduct.length || 0,
                             threshold: updatedProduct.threshold
                         });
                     });
                 } else {
-                    // If no products in localStorage, initialize with default lengths
                     newProducts = updatedProductsInfo.map(product => ({
                         name: product.name,
-                        length: 20, // Default length, can be adjusted
+                        length: 20, // Default length
                         threshold: product.threshold
                     }));
                 }
-                
-                localStorage.setItem('products', JSON.stringify(newProducts)); // Save the updated products
-                localStorage.setItem('version', version); // Save the version
+                localStorage.setItem('products', JSON.stringify(newProducts));
+                localStorage.setItem('version', version);
                 return newProducts;
             }
-
-            // If version matches, load products from localStorage
+    
             return JSON.parse(storedProducts);
         }
-
-        let products = getProducts(); // Get products (from localStorage or defaults)
-
+    
+        let products = getProducts();
+    
         function saveProducts() {
             localStorage.setItem('products', JSON.stringify(products));
         }
-
+    
         function updateTable() {
-            const productTable = document.getElementById('product-table').getElementsByTagName('tbody')[0];
-            productTable.innerHTML = ''; // Clear table before re-rendering
-
+            const productTable = document.getElementById('product-table');
+            productTable.innerHTML = ''; // Clear table
+    
             products.forEach((product, index) => {
                 const row = document.createElement('tr');
                 const isLowStock = product.length <= product.threshold;
-
+    
                 row.innerHTML = `
                     <td>${product.name}</td>
                     <td>
@@ -132,21 +127,39 @@
                 `;
                 productTable.appendChild(row);
             });
+    
+            
+            const undoButton = document.getElementById('undo-button');
+            undoButton.disabled = historyStack.length === 0; 
         }
-
+    
+        function storeHistory() {
+            
+            historyStack.push(JSON.stringify(products)); 
+            console.log("History stack:", historyStack); 
+            if (historyStack.length > 10) {
+                historyStack.shift(); 
+            }
+    
+            
+            document.getElementById('undo-button').disabled = false;
+        }
+    
         function subtractLength(index) {
+            storeHistory(); 
             if (products[index].length >= 1.22) {
                 products[index].length -= 1.22;
             } else {
-                products[index].length = 0; // Prevent negative values
+                products[index].length = 0; 
             }
-            saveProducts(); // Save to localStorage after updating
-            updateTable(); // Re-render table with updated lengths
+            saveProducts(); 
+            updateTable(); 
         }
-
+    
         function updateLength(index, value) {
             const newLength = parseFloat(value);
-            if (!isNaN(newLength) && newLength >= 0) { // Ensure the length is a valid non-negative number
+            if (!isNaN(newLength) && newLength >= 0) { // Ensure valid number
+                storeHistory(); // Save current state before change
                 products[index].length = newLength;
                 saveProducts(); // Save to localStorage after updating
             } else {
@@ -154,11 +167,27 @@
             }
             updateTable();
         }
-
+    
+        function undoLastAction() {
+            if (historyStack.length > 0) {
+                const lastState = historyStack.pop(); // Get last state
+                console.log("Restoring to previous state:", lastState); // Debug: Log restored state
+                products = JSON.parse(lastState); // Restore products
+                saveProducts(); // Save restored state to localStorage
+                updateTable(); // Re-render the table
+    
+                // Disable undo button if no more history
+                document.getElementById('undo-button').disabled = historyStack.length === 0;
+            }
+        }
+    
         window.onload = function () {
             updateTable(); // Initial rendering of table
         };
     </script>
-
-</body>
-</html>
+    
+    <!-- HTML -->
+    <body>
+        <table id="product-table"></table>
+        <button id="undo-button" onclick="undoLastAction()" disabled>Undo</button> <!-- Undo button -->
+    </body>
