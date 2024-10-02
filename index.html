@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gewebe</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        .low-stock {
+            background-color: red;
+            color: white;
+        }
+        input[type="number"] {
+            width: 100px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>BERBERTEC</h1>
+    <table id="product-table">
+        <thead>
+            <tr>
+                <th>Gewebe</th>
+                <th>Länge(m)</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Product rows JavaScript -->
+        </tbody>
+    </table>
+
+    <script>
+        const version = "1.2"; // Ako promijenim "name" dodat 0.1
+
+        // Initial product names and thresholds (lengths will be preserved)
+        const updatedProductsInfo = [
+        { name: "50/30/325", length:20, threshold: 10 }, 
+        { name: "63/40/250 kal", length: 15, threshold: 10 }, 
+        { name: "45/20/400 kal", length: 30, threshold: 10 }, 
+        { name: "50/30/325 kal", length: 18, threshold: 5 },
+        { name: "118/56/145 kal", length: 30, threshold: 10 }, 
+        { name: "100/50/165", length: 30, threshold: 10 }, 
+        { name: "40/28/370", length: 20, threshold: 5 },
+        { name: "90/40/200", length: 30, threshold: 5 }, 
+        { name: "40/25/400", length: 30, threshold: 10 },
+        { name: "56/32/300", length: 30, threshold: 5 },
+        { name: "45/20/400 kal", length: 30, threshold: 10 }, 
+        { name: "140/65/120 kal", length: 30, threshold: 5 }, 
+        { name: "63/40/250", length: 30, threshold: 10 }, 
+        { name: "55/25/325 kal", length: 30, threshold: 10 },
+        { name: "140/65/120", length: 30, threshold: 5 }, 
+        { name: "140/65/120", length: 30, threshold: 5 } 
+        ];
+
+        // Function to get the product list from localStorage or use defaults
+        function getProducts() {
+            const storedVersion = localStorage.getItem('version');
+            const storedProducts = localStorage.getItem('products');
+
+            if (!storedProducts || storedVersion !== version) {
+                let newProducts = [];
+                
+                if (storedProducts) {
+                    // If products exist in localStorage, preserve the lengths but update names and thresholds
+                    const existingProducts = JSON.parse(storedProducts);
+                    updatedProductsInfo.forEach((updatedProduct, index) => {
+                        let existingProduct = existingProducts[index] || {};
+                        newProducts.push({
+                            name: updatedProduct.name,
+                            length: existingProduct.length || updatedProduct.length || 20, // Preserve existing length or set default
+                            threshold: updatedProduct.threshold
+                        });
+                    });
+                } else {
+                    // If no products in localStorage, initialize with default lengths
+                    newProducts = updatedProductsInfo.map(product => ({
+                        name: product.name,
+                        length: 20, // Default length, can be adjusted
+                        threshold: product.threshold
+                    }));
+                }
+                
+                localStorage.setItem('products', JSON.stringify(newProducts)); // Save the updated products
+                localStorage.setItem('version', version); // Save the version
+                return newProducts;
+            }
+
+            // If version matches, load products from localStorage
+            return JSON.parse(storedProducts);
+        }
+
+        let products = getProducts(); // Get products (from localStorage or defaults)
+
+        function saveProducts() {
+            localStorage.setItem('products', JSON.stringify(products));
+        }
+
+        function updateTable() {
+            const productTable = document.getElementById('product-table').getElementsByTagName('tbody')[0];
+            productTable.innerHTML = ''; // Clear table before re-rendering
+
+            products.forEach((product, index) => {
+                const row = document.createElement('tr');
+                const isLowStock = product.length <= product.threshold;
+
+                row.innerHTML = `
+                    <td>${product.name}</td>
+                    <td>
+                        <input type="number" step="0.01" id="length-input-${index}" value="${product.length.toFixed(2)}" 
+                            onchange="updateLength(${index}, this.value)" class="${isLowStock ? 'low-stock' : ''}">
+                    </td>
+                    <td>
+                        <button onclick="subtractLength(${index})">Use 1.22m</button>
+                    </td>
+                `;
+                productTable.appendChild(row);
+            });
+        }
+
+        function subtractLength(index) {
+            if (products[index].length >= 1.22) {
+                products[index].length -= 1.22;
+            } else {
+                products[index].length = 0; // Prevent negative values
+            }
+            saveProducts(); // Save to localStorage after updating
+            updateTable(); // Re-render table with updated lengths
+        }
+
+        function updateLength(index, value) {
+            const newLength = parseFloat(value);
+            if (!isNaN(newLength) && newLength >= 0) { // Ensure the length is a valid non-negative number
+                products[index].length = newLength;
+                saveProducts(); // Save to localStorage after updating
+            } else {
+                alert("Please enter a valid non-negative number for the length.");
+            }
+            updateTable();
+        }
+
+        window.onload = function () {
+            updateTable(); // Initial rendering of table
+        };
+    </script>
+
+</body>
+</html>
