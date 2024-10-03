@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>  
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -28,11 +28,55 @@
         input[type="number"] {
             width: 100px;
         }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background-color: #f5f5f5;
+            width: 100%;
+        }
+        .header img {
+            height: 60px;
+            width: auto;
+        }
+        .header h1 {
+            margin: 0;
+            text-align: center;
+            font-size: 24px;
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+        }
+        .header-left,
+        .header-right {
+            width: 60px;
+            display: flex;
+            align-items: center;
+        }
+        #save-indicator {
+            color: green;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
-<body>
 
-    <h1>BERBERTEC</h1>
+<body>
+    <!-- Header container sa logo i centered title -->
+    <div class="header">
+        <div class="header-left">
+            <img src="bbtlogo.png" alt="Left Logo" id="left-logo">
+        </div>
+        <h1>BERBERTEC</h1>
+        <div class="header-right">
+            <img src="bbtlogo.png" alt="Right Logo" id="right-logo">
+        </div>
+    </div>
+
+    <h1>Gewebe</h1>
+
+    
     <table id="product-table">
         <thead>
             <tr>
@@ -42,18 +86,28 @@
             </tr>
         </thead>
         <tbody>
-            <!-- Product rows JavaScript -->
+           
         </tbody>
     </table>
-    
-    <button id="undo-button" onclick="undoLastAction()" disabled>Undo</button> <!-- Undo button -->
+
+    <!-- Undo button -->
+    <button id="undo-button" onclick="undoLastAction()" disabled>Undo</button>
+
+    <!-- Backup i Restore  -->
+    <button id="backup-button" onclick="backupData()">Backup Data</button>
+    <input type="file" id="fileInput" onchange="restoreDataFromFile(event)">
+
+    <!-- Auto-save indicator -->
+    <div id="save-indicator" style="display:none;">Saving...</div>
 
     <script>
-        const version = "1.3"; // Change number if you add or modify a product
-        let historyStack = []; 
 
+        <!--promijeniti broj ako dodam mrezu-->
+        const version = "1.3";
+        let historyStack = [];
+        
         const updatedProductsInfo = [
-            { name: "50/30/325", length:20, threshold: 10 }, 
+            { name: "50/30/325", length: 20, threshold: 10 }, 
             { name: "63/40/250 kal", length: 15, threshold: 10 }, 
             { name: "45/20/400 kal", length: 30, threshold: 10 }, 
             { name: "50/30/325 kal", length: 18, threshold: 5 },
@@ -104,6 +158,13 @@
 
         function saveProducts() {
             localStorage.setItem('products', JSON.stringify(products));
+            showSavingIndicator(); // pokazi save indicator kada saving
+        }
+
+        function showSavingIndicator() {
+            const indicator = document.getElementById('save-indicator');
+            indicator.style.display = 'block';
+            setTimeout(() => { indicator.style.display = 'none'; }, 1000);
         }
 
         function updateTable() {
@@ -121,46 +182,43 @@
                             onchange="updateLength(${index}, this.value)" class="${isLowStock ? 'low-stock' : ''}">
                     </td>
                     <td>
-                        <button onclick="subtractLength(${index})">Use 1.22m</button>
+                        <button onclick="subtractLength(${index}, 1.22)">Use 1.22m</button>
+                        <button onclick="subtractLength(${index}, 1.40)">Use 1.40m</button>
                     </td>
                 `;
                 productTable.appendChild(row);
             });
 
-            const undoButton = document.getElementById('undo-button');
-            undoButton.disabled = historyStack.length === 0; 
+            document.getElementById('undo-button').disabled = historyStack.length === 0;
         }
 
         function storeHistory() {
-            historyStack.push(JSON.stringify(products)); 
+            historyStack.push(JSON.stringify(products));
             localStorage.setItem('historyStack', JSON.stringify(historyStack)); // Save history stack to localStorage
-            console.log("History stack:", historyStack); 
-
             if (historyStack.length > 10) {
-                historyStack.shift(); 
+                historyStack.shift();
                 localStorage.setItem('historyStack', JSON.stringify(historyStack)); // Update history in localStorage
             }
-
             document.getElementById('undo-button').disabled = false;
         }
 
-        function subtractLength(index) {
-            storeHistory(); 
-            if (products[index].length >= 1.22) {
-                products[index].length -= 1.22;
+        function subtractLength(index, lengthToSubtract) {
+            storeHistory();
+            if (products[index].length >= lengthToSubtract) {
+                products[index].length -= lengthToSubtract;
             } else {
-                products[index].length = 0; 
+                products[index].length = 0;
             }
-            saveProducts(); 
-            updateTable(); 
+            saveProducts();
+            updateTable();
         }
 
         function updateLength(index, value) {
             const newLength = parseFloat(value);
-            if (!isNaN(newLength) && newLength >= 0) { // Ensure valid number
-                storeHistory(); // Save current state before change
+            if (!isNaN(newLength) && newLength >= 0) {
+                storeHistory();
                 products[index].length = newLength;
-                saveProducts(); // Save to localStorage after updating
+                saveProducts();
             } else {
                 alert("Please enter a valid non-negative number for the length.");
             }
@@ -169,25 +227,59 @@
 
         function undoLastAction() {
             if (historyStack.length > 0) {
-                const lastState = historyStack.pop(); // Get last state
-                console.log("Restoring to previous state:", lastState); // Debug: Log restored state
-                products = JSON.parse(lastState); // Restore products
-                saveProducts(); // Save restored state to localStorage
-                updateTable(); // Re-render the table
+                const lastState = historyStack.pop();
+                products = JSON.parse(lastState);
+                saveProducts();
+                updateTable();
 
-                // Disable undo button if no more history
                 document.getElementById('undo-button').disabled = historyStack.length === 0;
             }
         }
 
-        // Load history stack on page load
+        // Backup data to JSON file
+        function backupData() {
+            const data = {
+                products: products,
+                historyStack: historyStack
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "products_backup.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        // Restore data from backup JSON file
+        function restoreDataFromFile(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = JSON.parse(e.target.result);
+                products = data.products || products;
+                historyStack = data.historyStack || historyStack;
+                saveProducts();
+                updateTable();
+            };
+            reader.readAsText(file);
+        }
+
         window.onload = function () {
             const savedHistory = localStorage.getItem('historyStack');
             if (savedHistory) {
-                historyStack = JSON.parse(savedHistory); // Restore history from localStorage
+                historyStack = JSON.parse(savedHistory);
             }
-            updateTable(); // Initial rendering of table
+            updateTable();
         };
+
+        window.addEventListener('focus', function() {
+            const storedProducts = localStorage.getItem('products');
+            if (storedProducts) {
+                products = JSON.parse(storedProducts);
+                updateTable();
+            }
+        });
     </script>
 </body>
 </html>
